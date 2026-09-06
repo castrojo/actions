@@ -5,11 +5,7 @@ on:
     branches: [main]
     paths:
       - "actions/**"
-      - "bootc-build/create-release/scripts/**"
-      - "bootc-build/chunka/**"
-      - "bootc-build/detect-changes/**"
-      - "bootc-build/generate-tags/**"
-      - "bootc-build/setup-runner/**"
+      - "bootc-build/**"
       - "scripts/**"
       - ".github/actions/**"
       - "tests/**"
@@ -18,11 +14,7 @@ on:
   pull_request:
     paths:
       - "actions/**"
-      - "bootc-build/chunka/**"
-      - "bootc-build/create-release/scripts/**"
-      - "bootc-build/detect-changes/**"
-      - "bootc-build/generate-tags/**"
-      - "bootc-build/setup-runner/**"
+      - "bootc-build/**"
       - "scripts/**"
       - ".github/actions/**"
       - "tests/**"
