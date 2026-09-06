@@ -353,6 +353,10 @@ Inputs:
 | `enable-desktop-file-validate` | `"false"` | Optional `desktop-file-validate` for `system_files/**/*.desktop` |
 | `check-submodule-drift` | `""` | Optional comma-separated submodule paths to diff for manual edits |
 
+The optional `system-files-shellcheck-glob` step expands matches with `compgen` and
+passes them as an array so shell scripts under directories containing spaces remain
+individual shellcheck arguments.
+
 **Consumer layout gotcha — `validate-pr` default glob is bluefin-specific:** The default `shellcheck-glob` is `build_files/**/*.sh`, which is the bluefin/aurora layout. Repos with different conventions must override:
 - `bluefin-lts`: uses `build_scripts/**/*.sh` (not `build_files`)
 - `bluefin` and `common` can opt into `system-files-shellcheck-glob`, `enable-desktop-file-validate`, and `check-submodule-drift` for stricter `system_files` validation without changing defaults for other consumers

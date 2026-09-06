@@ -24,7 +24,8 @@ shopt -s globstar nullglob
 files=()
 read -ra patterns <<< "${SHELLCHECK_GLOB}"
 for pattern in "${patterns[@]}"; do
-  for f in $pattern; do
+  mapfile -t matches < <(compgen -G "$pattern")
+  for f in "${matches[@]}"; do
     [[ -f "$f" ]] && files+=("$f")
   done
 done
