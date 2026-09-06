@@ -71,8 +71,8 @@ runs:
         set -euo pipefail
         shopt -s globstar nullglob
         files=()
-        # shellcheck disable=SC2086
-        for pattern in ${SHELLCHECK_GLOB}; do
+        read -ra patterns <<< "${SHELLCHECK_GLOB}"
+        for pattern in "${patterns[@]}"; do
           for f in $pattern; do
             [[ -f "$f" ]] && files+=("$f")
           done
