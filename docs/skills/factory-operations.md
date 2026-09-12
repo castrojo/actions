@@ -159,6 +159,11 @@ Use the workflow `github.token` for read-only `gh run list` calls against the pu
 Generate a GitHub App token scoped to `projectbluefin/common` before creating issues there. This keeps
 cross-repo issue writes explicit while avoiding broader write scopes for routine monitoring.
 
+Token generation is best-effort so a GitHub App installation permission mismatch cannot prevent the
+health checks from running. If the cross-repo token is unavailable, use the workflow's repository-scoped
+`github.token` to file alerts in `projectbluefin/actions`. This preserves monitoring and alerting while
+keeping the fallback credential unable to write outside its source repository.
+
 **`MERGERAPTOR_APP_ID` is a `secrets.*` value, not a `vars.*` value** — see the approved-secrets
 table in `docs/skills/supply-chain.md`. Passing `vars.MERGERAPTOR_APP_ID` to
 `actions/create-github-app-token` silently resolves to an empty string (repo/org variables and
@@ -404,6 +409,49 @@ identical tree dismisses reviewers' approvals for no reason:
 SQUASH_TREE=$(git rev-parse HEAD^{tree})
 REMOTE_TREE=$(git ls-remote origin "refs/heads/$BRANCH" | cut -f1 | xargs git cat-file -p | grep tree | cut -d' ' -f2)
 [ "$SQUASH_TREE" = "$REMOTE_TREE" ] && echo "no-op, skipping force-push"
+```
+
+### Queue-entry guard: avoid branch rewrites when PR is merge-queued
+
+When a promotion PR is enrolled in a merge queue, GitHub locks the head branch and rejects
+any force-push or branch mutation with `GH006: Ref cannot be updated: A pull request using this branch as its head is in the merge queue and cannot be modified.` Subsequent workflow runs (e.g. daily cron, push to testing, or PR review triggers) must not attempt to rebuild or mutate the branch while it is queued.
+
+Before checkout or branch mutation, query GraphQL for an existing `mergeQueueEntry` on the
+open promotion PR. If a queue entry exists, emit an informative notice, set `promoted=false`,
+and exit 0 so the merge queue can progress undisturbed:
+
+```bash
+# shellcheck disable=SC2016  # GraphQL variables, not shell variables
+PR_DATA=$(gh api graphql \
+  -f query='query($owner: String!, $repo: String!, $head: String!, $base: String!) {
+    repository(owner: $owner, name: $repo) {
+      pullRequests(headRefName: $head, baseRefName: $base, states: OPEN, first: 1) {
+        nodes {
+          id
+          number
+          url
+          mergeQueueEntry {
+            id
+            state
+          }
+        }
+      }
+    }
+  }' \
+  -F owner="$REPO_OWNER" \
+  -F repo="$REPO_NAME" \
+  -F head="$PROMOTION_BRANCH" \
+  -F base="$TARGET_BRANCH" \
+  --jq '.data.repository.pullRequests.nodes[0] // empty' 2>/dev/null) || PR_DATA=""
+
+if [ -n "$PR_DATA" ]; then
+  QUEUE_ENTRY_ID=$(echo "$PR_DATA" | jq -r '.mergeQueueEntry.id // empty' 2>/dev/null || echo "")
+  if [ -n "$QUEUE_ENTRY_ID" ]; then
+    echo "::notice::Promotion PR #${PR_NUMBER} has active merge queue entry (${QUEUE_ENTRY_ID}) — skipping branch mutation"
+    echo "promoted=false" >> "$GITHUB_OUTPUT"
+    exit 0
+  fi
+fi
 ```
 
 ### gh api failure output goes to stdout — capture defensively

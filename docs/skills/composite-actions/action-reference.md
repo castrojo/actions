@@ -353,6 +353,10 @@ Inputs:
 | `enable-desktop-file-validate` | `"false"` | Optional `desktop-file-validate` for `system_files/**/*.desktop` |
 | `check-submodule-drift` | `""` | Optional comma-separated submodule paths to diff for manual edits |
 
+The optional `system-files-shellcheck-glob` step expands matches with `compgen` and
+passes them as an array so shell scripts under directories containing spaces remain
+individual shellcheck arguments.
+
 **Consumer layout gotcha — `validate-pr` default glob is bluefin-specific:** The default `shellcheck-glob` is `build_files/**/*.sh`, which is the bluefin/aurora layout. Repos with different conventions must override:
 - `bluefin-lts`: uses `build_scripts/**/*.sh` (not `build_files`)
 - `bluefin` and `common` can opt into `system-files-shellcheck-glob`, `enable-desktop-file-validate`, and `check-submodule-drift` for stricter `system_files` validation without changing defaults for other consumers
@@ -377,7 +381,7 @@ Wraps `aquasecurity/trivy-action` to scan a locally built OCI image for CVEs **b
 
 **Placement rule:** must run per-arch in the matrix build job, after `Tag Images` and **before** `Push to GHCR`. Scanning after push means shipping a known-critical image to the registry. This action is already wired into `reusable-build.yml` at the correct position.
 
-`scan-image` is now **always non-blocking** for CVE findings: it forces Trivy `exit-code: 0`, uploads SARIF, parses Trivy JSON output for CRITICAL findings, and can optionally open a GitHub issue summarizing the affected packages, CVE IDs, and fixed versions.
+`scan-image` is now **always non-blocking** for CVE findings: it forces Trivy `exit-code: 0`, uploads SARIF, parses Trivy JSON output for CRITICAL findings, and can optionally open a GitHub issue summarizing the affected packages, CVE IDs, and fixed versions. When Trivy crashes and produces no results file, the summarize step **fails closed** (exit 1) with a `::error::` annotation — scan infrastructure failures are visible in CI, never silently masked as "no CVEs".
 
 Inputs:
 
